@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LaunchScape | The Outside Company</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">THE OUTSIDE COMPANY</div>
+      <h1>LaunchScape</h1>
+      <p>Southwest Florida Prospecting Cockpit</p>
+    </div>
+    <div class="source-pill" id="sourcePill">Checking Lee County data…</div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="dashboard" class="active">Dashboard</button>
+    <button data-tab="finder">Lead Finder</button>
+    <button data-tab="pipeline">Pipeline</button>
+    <button data-tab="callqueue">Michael's Call Queue</button>
+    <button data-tab="campaigns">Campaigns</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+
+  <main>
+    <section id="dashboard" class="panel active">
+      <div class="section-head">
+        <div><div class="eyebrow">TODAY'S WORK</div><h2>What needs attention</h2></div>
+        <button class="primary" onclick="showTab('finder')">Find New Prospects</button>
+      </div>
+      <div class="metrics" id="metrics"></div>
+      <div class="two-col">
+        <div class="card">
+          <h3>Hot Leads</h3>
+          <div id="hotLeads"></div>
+        </div>
+        <div class="card">
+          <h3>Overdue Follow-Ups</h3>
+          <div id="overdue"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="finder" class="panel">
+      <div class="section-head">
+        <div><div class="eyebrow">LEAD FINDER</div><h2>Hunt for the right properties</h2></div>
+        <span class="muted">Lee County public parcel data</span>
+      </div>
+
+      <div class="profiles">
+        <button onclick="applyProfile('waterfront')">Waterfront Paradise</button>
+        <button onclick="applyProfile('pool')">Pool Upgrade</button>
+        <button onclick="applyProfile('newowner')">New Owner</button>
+        <button onclick="applyProfile('premium')">Premium Home</button>
+        <button onclick="applyProfile('older')">Older Home Refresh</button>
+        <button onclick="applyProfile('snowbird')">Snowbird / Out-of-State</button>
+        <button onclick="resetFilters()">Reset</button>
+      </div>
+
+      <div class="card filters">
+        <label>City
+          <input id="city" value="CAPE CORAL" />
+        </label>
+        <label>ZIP
+          <input id="zip" placeholder="33914" />
+        </label>
+        <label>Min Property Value
+          <input id="minValue" type="number" value="450000" />
+        </label>
+        <label>Min Heated Sq Ft
+          <input id="minArea" type="number" value="1800" />
+        </label>
+        <label>Year Built From
+          <input id="yearFrom" type="number" />
+        </label>
+        <label>Year Built To
+          <input id="yearTo" type="number" />
+        </label>
+        <label>Recent Sale Within Months
+          <input id="saleMonths" type="number" min="0" value="24" />
+        </label>
+        <label>Pool
+          <select id="pool"><option value="">Any</option><option value="Y">Yes</option><option value="N">No</option></select>
+        </label>
+        <label>Boat Dock
+          <select id="dock"><option value="">Any</option><option value="Y">Yes</option><option value="N">No</option></select>
+        </label>
+        <label>Seawall
+          <select id="seawall"><option value="">Any</option><option value="Y">Yes</option><option value="N">No</option></select>
+        </label>
+        <label class="checkbox"><input id="outOfState" type="checkbox" /> Out-of-state owner</label>
+        <label class="checkbox"><input id="absentee" type="checkbox" /> Likely absentee owner</label>
+        <div class="filter-actions">
+          <button class="primary" onclick="searchParcels()">Search Properties</button>
+        </div>
+      </div>
+
+      <div class="statusline" id="searchStatus"></div>
+      <div id="results"></div>
+    </section>
+
+    <section id="pipeline" class="panel">
+      <div class="section-head">
+        <div><div class="eyebrow">PIPELINE</div><h2>Saved opportunities</h2></div>
+        <button onclick="exportCSV()">Export CSV</button>
+      </div>
+      <div id="pipelineTable"></div>
+    </section>
+
+    <section id="callqueue" class="panel">
+      <div class="section-head">
+        <div><div class="eyebrow">MICHAEL SCHWARTZ · SALES MANAGER</div><h2>Call Queue</h2></div>
+      </div>
+      <div class="card contact-import">
+        <strong>Contact Enrichment</strong>
+        <span>Enter verified phone/email on each lead. LaunchScape never invents contact details.</span>
+      </div>
+      <div id="callQueue"></div>
+    </section>
+
+    <section id="campaigns" class="panel">
+      <div class="section-head">
+        <div><div class="eyebrow">CAMPAIGNS</div><h2>Build target lists</h2></div>
+      </div>
+      <div class="card campaign-create">
+        <input id="campaignName" placeholder="e.g. SW Cape Waterfront Q4" />
+        <input id="campaignNotes" placeholder="Campaign notes" />
+        <button class="primary" onclick="createCampaign()">Create Campaign</button>
+      </div>
+      <div id="campaignList"></div>
+    </section>
+
+    <section id="settings" class="panel">
+      <div class="section-head">
+        <div><div class="eyebrow">SETTINGS / DATA SOURCES</div><h2>Connections</h2></div>
+      </div>
+      <div class="card">
+        <h3>Lee County Parcel Data</h3>
+        <p><strong>Source:</strong> Lee County Property Appraiser / Lee County Government ArcGIS</p>
+        <p class="mono">https://gismapserver.leegov.com/gisserver910/rest/services/Layers/ParcelAddress/MapServer/0</p>
+        <p id="sourceStatus">Checking…</p>
+      </div>
+      <div class="card">
+        <h3>Database</h3>
+        <p>Current mode: <strong>Local browser storage</strong>. This lets the app run immediately without a paid service.</p>
+        <p>The included Supabase schema is ready for the next step once the Supabase connection is authorized.</p>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="leadDialog">
+    <form method="dialog" class="dialog-card">
+      <button class="close" value="cancel">×</button>
+      <div id="leadDialogBody"></div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
