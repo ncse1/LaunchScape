@@ -213,7 +213,7 @@ function assignCampaign(id){
 function renderCampaigns(){
   const el=document.getElementById('campaignList');
   if(!campaigns.length){el.innerHTML='<div class="card empty">No campaigns yet.</div>';return}
-  el.innerHTML=campaigns.map(c=>{const ls=leads.filter(l=>l.campaign===c.name),pv=ls.reduce((s,l)=>s+(+l.estimatedValue||0),0);return `<div class="card campaign-row"><div><strong>${esc(c.name)}</strong><div class="muted">${esc(c.notes||'')} · ${ls.length} leads · ${ls.filter(l=>l.status==='Consultation Set').length} consultations · ${ls.filter(l=>l.status==='Won').length} won · ${money(pv)} pipeline</div></div><button onclick="assignCampaign('${c.id}')">Assign Leads</button></div>`}).join('');
+  el.innerHTML=campaigns.map(c=>{const ls=leads.filter(l=>l.campaign===c.name),pv=ls.reduce((s,l)=>s+(+l.estimatedValue||0),0);return `<div class="card campaign-row"><div><strong>${esc(c.name)}</strong><div class="muted">${esc(c.notes||'')} · ${ls.length} leads · ${ls.filter(l=>l.status==='Consultation Set').length} consultations · ${ls.filter(l=>l.status==='Won').length} won · ${money(pv)} pipeline</div></div><div class="actions">${c.aiDraft?`<button onclick="viewAICampaign('${c.id}')">View Draft</button>`:''}<button onclick="assignCampaign('${c.id}')">Assign Leads</button></div></div>`}).join('');
 }
 function exportCSV(){
   const cols=['score','siteAddress','siteCity','siteZip','ownerName','ownerCity','ownerState','justValue','yearBuilt','heatedArea','status','assignedTo','nextAction','estimatedValue','campaign','phone','email','contactSource','contactConfidence','doNotContact'];
@@ -236,3 +236,47 @@ function resetFilters(clearCity=true){
 }
 function renderAll(){renderMetrics();renderDashboardLists();renderPipeline();renderCallQueue();renderCampaigns();}
 pingSource();renderResults();renderAll();
+
+let currentAICampaign=null;
+const aiLabels={name:'Campaign',audience:'Target Audience',offer:'Offer',positioning:'Why Choose Us',emailSubject:'Email Subject',emailBody:'Email Draft',callScript:'Call Script',socialPost:'Social Post',followUp:'Follow-Up',actionPlan:'Office Action Plan'};
+document.getElementById('aiEndpoint').value=localStorage.getItem('launchscape_ai_endpoint')||(location.hostname==='ncse1.github.io'?'':location.origin+'/api/campaign');
+document.getElementById('aiAccessCode').value=sessionStorage.getItem('launchscape_ai_code')||'';
+function connectionURL(){
+ const url=new URL(document.getElementById('aiEndpoint').value.trim());
+ if(url.username||url.password||url.search||url.hash)throw new Error('Use a server URL without passwords or query parameters.');
+ if(url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw new Error('Use a secure HTTPS server address.');
+ return url.href;
+}
+function saveAIConnection(){
+ try{localStorage.setItem('launchscape_ai_endpoint',connectionURL());sessionStorage.setItem('launchscape_ai_code',document.getElementById('aiAccessCode').value);document.getElementById('aiConnectionStatus').textContent='Connection details saved. Build a campaign to test the connection.';}
+ catch(e){document.getElementById('aiConnectionStatus').textContent=e.message;}
+}
+async function generateAICampaign(){
+ const status=document.getElementById('aiStatus'),button=document.getElementById('aiBuildButton');
+ const body={business:aiBusiness.value,audience:aiAudience.value.trim(),goal:aiGoal.value.trim(),offer:aiOffer.value.trim(),notes:aiNotes.value.trim()};
+ if(!body.audience||!body.goal){status.textContent='Enter the target audience and campaign goal.';return;}
+ let endpoint;try{endpoint=connectionURL();}catch{status.textContent='Open Settings and enter your AI server address first.';return;}
+ if(!aiAccessCode.value){status.textContent='Open Settings and enter your office access code first.';return;}
+ button.disabled=true;status.textContent='Building your campaign…';currentAICampaign=null;document.getElementById('aiCampaignOutput').replaceChildren();
+ try{
+  const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+aiAccessCode.value},body:JSON.stringify(body),signal:AbortSignal.timeout(65000)});
+  let j;try{j=await r.json();}catch{throw new Error('The server address did not return a campaign. Check the connection in Settings.');}
+  if(!r.ok)throw new Error(j.error||'Campaign generation failed.');
+  if(!j.campaign||!Object.keys(aiLabels).every(k=>typeof j.campaign[k]==='string'))throw new Error('The server returned an incomplete campaign.');
+  currentAICampaign=j.campaign;renderAIDraft(currentAICampaign);status.textContent='Draft ready. Review it, then save or download. Nothing has been sent.';
+ }catch(e){status.textContent=e.name==='TimeoutError'?'The request timed out. Please retry.':e.message;}
+ finally{button.disabled=false;}
+}
+function renderAIDraft(c){
+ document.getElementById('aiCampaignOutput').innerHTML=Object.entries(aiLabels).map(([k,label])=>`<h3>${label}</h3><p style="white-space:pre-wrap">${esc(c[k])}</p>`).join('')+'<div class="actions"><button onclick="saveAIDraft()">Save Draft</button><button onclick="downloadAIDraft()">Download Draft</button></div>';
+}
+function saveAIDraft(){
+ if(!currentAICampaign)return;
+ campaigns.push({id:uid(),name:currentAICampaign.name+' · '+new Date().toLocaleString(),notes:currentAICampaign.audience,aiDraft:{...currentAICampaign},createdAt:new Date().toISOString()});save();aiStatus.textContent='Campaign saved in this browser. Download a copy to keep or share.';
+}
+function viewAICampaign(id){const c=campaigns.find(x=>x.id===id);if(!c?.aiDraft)return;currentAICampaign=c.aiDraft;renderAIDraft(currentAICampaign);aiStatus.textContent='Saved campaign draft.';}
+function downloadAIDraft(){
+ if(!currentAICampaign)return;
+ const text=Object.entries(aiLabels).map(([k,label])=>label+'\n'+currentAICampaign[k]).join('\n\n');
+ const url=URL.createObjectURL(new Blob([text],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='launchscape-campaign.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}

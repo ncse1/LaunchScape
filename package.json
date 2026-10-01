@@ -1,0 +1,1 @@
+{"name":"launchscape","private":true,"type":"module","scripts":{"test":"node --test","start":"node --env-file=.env.local server.mjs"},"engines":{"node":">=22"}}
