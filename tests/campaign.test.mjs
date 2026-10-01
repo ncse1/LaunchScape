@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {makeHandler} from './campaign.mjs';
+import {makeHandler} from '../api/campaign.mjs';
 const env={OPENAI_API_KEY:'test-secret',LAUNCHSCAPE_ACCESS_TOKEN:'office-test'};
 const draft=Object.fromEntries(['name','audience','offer','positioning','emailSubject','emailBody','callScript','socialPost','followUp','actionPlan'].map(k=>[k,'Draft '+k]));
 function response(){return {headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.code=n;return this;},json(b){this.body=b;return this;},end(){return this;}};}

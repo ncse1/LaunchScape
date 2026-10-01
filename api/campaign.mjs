@@ -7,7 +7,7 @@ export function makeHandler({env=process.env,fetcher=fetch}={}){
  return async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
   const origin=req.headers.origin;
-  const allowed=(env.ALLOWED_ORIGINS||'https://ncse1.github.io').split(',').map(s=>s.trim());
+  const allowed=(env.ALLOWED_ORIGINS||'https://ncse1.github.io,https://launchscape-liart.vercel.app').split(',').map(s=>s.trim());
   if(origin&&!allowed.includes(origin))return res.status(403).json({error:'This website is not allowed.'});
   if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');}
   res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type');
