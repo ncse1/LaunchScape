@@ -237,7 +237,7 @@ function resetFilters(clearCity=true){
 function renderAll(){renderMetrics();renderDashboardLists();renderPipeline();renderCallQueue();renderCampaigns();}
 pingSource();renderResults();renderAll();
 
-let currentAICampaign=null;
+let currentAICampaign=null, currentAICampaignId=null;
 const aiLabels={name:'Campaign',audience:'Target Audience',offer:'Offer',positioning:'Why Choose Us',emailSubject:'Email Subject',emailBody:'Email Draft',callScript:'Call Script',socialPost:'Social Post',followUp:'Follow-Up',actionPlan:'Office Action Plan'};
 document.getElementById('aiEndpoint').value=localStorage.getItem('launchscape_ai_endpoint')||(location.hostname==='ncse1.github.io'?'':location.origin+'/api/campaign');
 document.getElementById('aiAccessCode').value=sessionStorage.getItem('launchscape_ai_code')||'';
@@ -257,7 +257,7 @@ async function generateAICampaign(){
  if(!body.audience||!body.goal){status.textContent='Enter the target audience and campaign goal.';return;}
  let endpoint;try{endpoint=connectionURL();}catch{status.textContent='Open Settings and enter your AI server address first.';return;}
  if(!aiAccessCode.value){status.textContent='Open Settings and enter your office access code first.';return;}
- button.disabled=true;status.textContent='Building your campaign…';currentAICampaign=null;document.getElementById('aiCampaignOutput').replaceChildren();
+ button.disabled=true;status.textContent='Building your campaign…';currentAICampaign=null;currentAICampaignId=null;document.getElementById('aiCampaignOutput').replaceChildren();
  try{
   const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+aiAccessCode.value},body:JSON.stringify(body),signal:AbortSignal.timeout(65000)});
   let j;try{j=await r.json();}catch{throw new Error('The server address did not return a campaign. Check the connection in Settings.');}
@@ -267,16 +267,41 @@ async function generateAICampaign(){
  }catch(e){status.textContent=e.name==='TimeoutError'?'The request timed out. Please retry.':e.message;}
  finally{button.disabled=false;}
 }
+function campaignImage(c){return /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(c.image||'')?c.image:'';}
 function renderAIDraft(c){
- document.getElementById('aiCampaignOutput').innerHTML=Object.entries(aiLabels).map(([k,label])=>`<h3>${label}</h3><p style="white-space:pre-wrap">${esc(c[k])}</p>`).join('')+'<div class="actions"><button onclick="saveAIDraft()">Save Draft</button><button onclick="downloadAIDraft()">Download Draft</button></div>';
+ const picture=campaignImage(c);
+ document.getElementById('aiCampaignOutput').innerHTML=`<h3>Campaign picture</h3><label>Add a picture<input type="file" accept="image/jpeg,image/png,image/webp" onchange="attachCampaignImage(this)"></label>${picture?`<img src="${picture}" alt="Campaign design concept" style="display:block;max-width:100%;max-height:600px;margin:16px 0"><button onclick="removeCampaignImage()">Remove picture</button>`:''}<p class="muted">Label proposed renderings as design concepts. Save Draft keeps your picture and edits.</p>`+Object.entries(aiLabels).map(([k,label])=>`<label style="display:block;margin:16px 0">${label}<textarea rows="${['name','audience','offer','emailSubject'].includes(k)?2:5}" style="display:block;width:100%;box-sizing:border-box" oninput="currentAICampaign['${k}']=this.value">${esc(c[k])}</textarea></label>`).join('')+'<div class="actions"><button onclick="saveAIDraft()">Save Draft</button><button onclick="downloadAIDraft()">Download Draft</button><button onclick="downloadCampaignWithPicture()">Download with Picture</button></div>';
 }
+async function attachCampaignImage(input){
+ const draft=currentAICampaign,file=input.files[0];if(!draft||!file)return;
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15000000){aiStatus.textContent='Choose a JPG, PNG or WebP picture under 15 MB.';return;}
+ try{
+  const bitmap=await createImageBitmap(file),scale=Math.min(1,1400/Math.max(bitmap.width,bitmap.height));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+  const image=canvas.toDataURL('image/jpeg',0.8);if(image.length>1500000)throw new Error('This picture is too large. Try a smaller picture.');
+  if(currentAICampaign!==draft)return;draft.image=image;renderAIDraft(draft);aiStatus.textContent='Picture attached. Click Save Draft to keep it.';
+ }catch(e){aiStatus.textContent=e.message||'The picture could not be opened.';}
+}
+function removeCampaignImage(){if(!currentAICampaign)return;delete currentAICampaign.image;renderAIDraft(currentAICampaign);aiStatus.textContent='Picture removed. Click Save Draft to keep this change.';}
 function saveAIDraft(){
  if(!currentAICampaign)return;
- campaigns.push({id:uid(),name:currentAICampaign.name+' · '+new Date().toLocaleString(),notes:currentAICampaign.audience,aiDraft:{...currentAICampaign},createdAt:new Date().toISOString()});save();aiStatus.textContent='Campaign saved in this browser. Download a copy to keep or share.';
+ const existing=campaigns.find(c=>c.id===currentAICampaignId),id=existing?.id||uid();
+ const next=existing?{...existing,notes:currentAICampaign.audience,aiDraft:{...currentAICampaign}}:{id,name:currentAICampaign.name+' · '+new Date().toLocaleString(),notes:currentAICampaign.audience,aiDraft:{...currentAICampaign},createdAt:new Date().toISOString()};
+ const updated=existing?campaigns.map(c=>c.id===id?next:c):[...campaigns,next];
+ try{localStorage.setItem('launchscape_campaigns',JSON.stringify(updated));campaigns=updated;currentAICampaignId=id;renderCampaigns();aiStatus.textContent='Campaign and picture saved in this browser. Download a copy to keep or share.';}
+ catch{aiStatus.textContent='Browser storage is full. Your changes are still open. Download with Picture to keep a copy, or remove the picture and retry.';}
 }
-function viewAICampaign(id){const c=campaigns.find(x=>x.id===id);if(!c?.aiDraft)return;currentAICampaign=c.aiDraft;renderAIDraft(currentAICampaign);aiStatus.textContent='Saved campaign draft.';}
+function viewAICampaign(id){const c=campaigns.find(x=>x.id===id);if(!c?.aiDraft)return;currentAICampaign={...c.aiDraft};currentAICampaignId=id;renderAIDraft(currentAICampaign);aiStatus.textContent='Saved campaign draft. You can edit the text and add a picture.';document.getElementById('aiCampaignOutput').scrollIntoView({behavior:'smooth'});}
+function downloadCampaignFile(contents,type,name){const url=URL.createObjectURL(new Blob([contents],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function downloadAIDraft(){
  if(!currentAICampaign)return;
  const text=Object.entries(aiLabels).map(([k,label])=>label+'\n'+currentAICampaign[k]).join('\n\n');
- const url=URL.createObjectURL(new Blob([text],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='launchscape-campaign.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ downloadCampaignFile(text,'text/plain','launchscape-campaign.txt');
+}
+function downloadCampaignWithPicture(){
+ if(!currentAICampaign)return;
+ const c=currentAICampaign,picture=campaignImage(c);
+ const html='<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(c.name)+'</title><style>body{max-width:900px;margin:40px auto;padding:20px;font:18px/1.6 system-ui;color:#183c32}img{max-width:100%}p{white-space:pre-wrap}h2{margin-top:32px}</style><body><h1>'+esc(c.name)+'</h1>'+(picture?'<img src="'+picture+'" alt="Campaign picture"><p>Proposed design concept — not completed construction.</p>':'')+Object.entries(aiLabels).filter(([k])=>k!=='name').map(([k,label])=>'<h2>'+label+'</h2><p>'+esc(c[k])+'</p>').join('')+'</body></html>';
+ downloadCampaignFile(html,'text/html','launchscape-campaign-with-picture.html');
 }
