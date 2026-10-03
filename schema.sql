@@ -59,3 +59,34 @@ create table if not exists campaigns (
 create index if not exists leads_status_idx on leads(status);
 create index if not exists leads_next_action_idx on leads(next_action_date);
 create index if not exists leads_score_idx on leads(score desc);
+
+
+-- Shared state used by the current LaunchScape browser app.
+-- Access is restricted to authenticated office users through RLS.
+create table if not exists launchscape_state (
+  id integer primary key check (id = 1),
+  leads jsonb not null default '[]'::jsonb,
+  campaigns jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table launchscape_state enable row level security;
+
+drop policy if exists "office users can read launchscape state" on launchscape_state;
+create policy "office users can read launchscape state"
+on launchscape_state for select
+to authenticated
+using (true);
+
+drop policy if exists "office users can insert launchscape state" on launchscape_state;
+create policy "office users can insert launchscape state"
+on launchscape_state for insert
+to authenticated
+with check (id = 1);
+
+drop policy if exists "office users can update launchscape state" on launchscape_state;
+create policy "office users can update launchscape state"
+on launchscape_state for update
+to authenticated
+using (id = 1)
+with check (id = 1);
