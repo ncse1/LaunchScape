@@ -18,7 +18,7 @@
 
   <nav class="tabs" id="tabs">
     <button data-tab="dashboard" class="active">Dashboard</button>
-    <button data-tab="finder">Lead Finder</button>
+    <button data-tab="finder">Lead Finder</button>\n    <button data-tab="realestate">Real Estate Radar</button>
     <button data-tab="pipeline">Pipeline</button>
     <button data-tab="callqueue">Michael's Call Queue</button>
     <button data-tab="campaigns">Campaigns</button>
@@ -102,6 +102,55 @@
       <div id="results"></div>
     </section>
 
+    <section id="realestate" class="panel">
+      <div class="section-head">
+        <div><div class="eyebrow">JACK SCHWARTZ · RE/MAX SUNSHINE</div><h2>Real Estate Lead Radar</h2></div>
+        <span class="muted">Listing opportunities from public property records + your listing exports</span>
+      </div>
+
+      <div class="card">
+        <div class="section-head" style="margin-bottom:10px">
+          <div>
+            <div class="eyebrow">SELLER RADAR</div>
+            <h3 style="margin:2px 0">Find owners worth calling</h3>
+            <div class="muted">Long-held, absentee/out-of-state, waterfront and premium-property signals. A signal is not proof an owner intends to sell.</div>
+          </div>
+        </div>
+        <div class="profiles">
+          <button type="button" data-re-profile="seller">Best Seller Prospects</button>
+          <button type="button" data-re-profile="absentee">Out-of-State Owners</button>
+          <button type="button" data-re-profile="waterfront">Waterfront Sellers</button>
+          <button type="button" data-re-profile="longheld">Long-Held Properties</button>
+          <button type="button" data-re-profile="premium">Premium Properties</button>
+        </div>
+        <div class="filters">
+          <label>City<input id="reCity" value="CAPE CORAL"></label>
+          <label>ZIP<input id="reZip" placeholder="33914"></label>
+          <label>Min County Value<input id="reMinValue" type="number" value="350000"></label>
+          <label>Min Years Held<input id="reMinYears" type="number" min="0" value="7"></label>
+          <label>Profile<select id="reProfile"><option value="seller">Best Seller Prospects</option><option value="absentee">Out-of-State Owners</option><option value="waterfront">Waterfront Sellers</option><option value="longheld">Long-Held Properties</option><option value="premium">Premium Properties</option></select></label>
+          <div class="filter-actions"><button type="button" class="primary" id="reHuntButton">Hunt Seller Leads</button></div>
+        </div>
+        <div id="reSummary" class="statusline">Ready to search Lee County public records.</div>
+        <div id="reStatus" class="statusline"></div>
+      </div>
+
+      <div id="reResults"></div>
+
+      <div class="card">
+        <div class="eyebrow">MLS / LISTING ACTIVITY</div>
+        <h3>Import 90+ DOM, expired, withdrawn or canceled listings</h3>
+        <p class="muted">Export a CSV from your MLS/CRM and drop it here. LaunchScape will score the listing opportunities and keep them in Jack's real-estate pipeline. Include property address; status, DOM, price, owner, phone and email are optional.</p>
+        <label>Listing activity CSV<input id="reListingCsv" type="file" accept=".csv,text/csv"></label>
+        <div id="reImportStatus" class="statusline"></div>
+      </div>
+
+      <div class="section-head">
+        <div><div class="eyebrow">JACK'S PIPELINE</div><h2>Real-estate opportunities</h2></div>
+      </div>
+      <div id="rePipeline"></div>
+    </section>
+
     <section id="pipeline" class="panel">
       <div class="section-head">
         <div><div class="eyebrow">PIPELINE</div><h2>Saved opportunities</h2></div>
@@ -178,7 +227,7 @@
     </form>
   </dialog>
 
-  <script src="app.js"></script>\n  <script src="enhancements.js"></script>\n  <script src="radar.js"></script>\n  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n  <script src="supabase-config.js"></script>\n  <script src="cloud.js"></script>
+  <script src="app.js"></script>\n  <script src="enhancements.js"></script>\n  <script src="radar.js"></script>\n  <script src="real-estate.js"></script>\n  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n  <script src="supabase-config.js"></script>\n  <script src="cloud.js"></script>
 </body>
 </html>
 
