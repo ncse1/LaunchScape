@@ -265,6 +265,100 @@ async function radar(days=30){
   };
 }
 
+
+function yearsHeld(a){
+  if(!a.S_1DATE)return 0;
+  const d=new Date(a.S_1DATE);
+  if(Number.isNaN(d.getTime()))return 0;
+  return Math.max(0,(Date.now()-d.getTime())/(365.2425*86400000));
+}
+
+function scoreRealEstate(a,profile='seller'){
+  let score=20; const reasons=[];
+  const add=(pts,why)=>{score+=pts;reasons.push(why);};
+  const years=yearsHeld(a);
+  if(years>=15)add(28,'owned 15+ years');
+  else if(years>=10)add(22,'owned 10+ years');
+  else if(years>=7)add(16,'owned 7+ years');
+  else if(years>=5)add(10,'owned 5+ years');
+
+  const state=clean(a.O_STATE,20).toUpperCase();
+  const ownerCity=clean(a.O_CITY,80).toUpperCase();
+  const siteCity=clean(a.SITECITY,80).toUpperCase();
+  if(state&&state!=='FL')add(20,'out-of-state owner');
+  else if(ownerCity&&siteCity&&ownerCity!==siteCity)add(8,'mailing city differs from property');
+
+  const value=Number(a.JUST||0);
+  if(value>=1200000)add(18,'$1.2M+ property');
+  else if(value>=900000)add(14,'$900k+ property');
+  else if(value>=600000)add(10,'$600k+ property');
+  else if(value>=400000)add(6,'$400k+ property');
+
+  if(yes(a.BOATDOCK)||yes(a.SEAWALL))add(15,'waterfront / marine features');
+  if(yes(a.POOL))add(4,'pool property');
+
+  if(profile==='absentee' && state!=='FL')add(10,'matches absentee-owner search');
+  if(profile==='waterfront' && (yes(a.BOATDOCK)||yes(a.SEAWALL)))add(12,'matches waterfront seller search');
+  if(profile==='premium' && value>=900000)add(10,'matches premium seller search');
+  if(profile==='longheld' && years>=10)add(10,'matches long-held seller search');
+
+  return {score:Math.min(100,score),reasons:[...new Set(reasons)],yearsHeld:years};
+}
+
+function realEstateResult(a,profile){
+  const s=scoreRealEstate(a,profile);
+  const signals=[];
+  if(s.yearsHeld>=10)signals.push('Long-held ownership');
+  if(a.O_STATE&&String(a.O_STATE).toUpperCase()!=='FL')signals.push('Out-of-state ownership');
+  if(yes(a.BOATDOCK)||yes(a.SEAWALL))signals.push('Waterfront property');
+  if(Number(a.JUST||0)>=900000)signals.push('Premium property');
+  return {
+    ...a,
+    score:s.score,
+    reasons:s.reasons,
+    _yearsHeld:Number(s.yearsHeld.toFixed(1)),
+    _source:'Lee County Property – Real Estate',
+    _signal:signals.join(' + ')||'Seller prospect',
+    _leadType:'real-estate',
+    _target:'seller',
+    _kind:'real-estate'
+  };
+}
+
+async function realEstateRadar(filters={}){
+  const city=clean(filters.city||'CAPE CORAL',80).replaceAll("'","''").toUpperCase();
+  const zip=clean(filters.zip||'',12).replaceAll("'","''");
+  const profile=clean(filters.profile||'seller',30);
+  const minValue=Math.max(250000,Math.round(num(filters.minValue||350000,0,100000000)));
+  const minYears=Math.max(0,Math.min(40,Math.round(num(filters.minYears||7,0,40))));
+  const heldCutoff=minYears?dateLiteral(monthsAgo(minYears*12)):'';
+  const q=["SITEADDR IS NOT NULL",`SITECITY='${city}'`,`JUST>=${minValue}`,'S_1DATE IS NOT NULL'];
+  if(zip)q.push(`SITEZIP='${zip}'`);
+  if(heldCutoff)q.push(`S_1DATE<=DATE '${heldCutoff}'`);
+  if(profile==='absentee')q.push("O_STATE<>'FL'");
+  if(profile==='waterfront')q.push("(BOATDOCK='Y' OR SEAWALL='Y')");
+  if(profile==='premium')q.push("JUST>=900000");
+  if(profile==='longheld'){
+    const cutoff=dateLiteral(monthsAgo(10*12));
+    q.push(`S_1DATE<=DATE '${cutoff}'`);
+  }
+
+  const rows=await fetchArcgis(PARCEL_URL,{
+    where:q.join(' AND '),
+    outFields:PARCEL_FIELDS,
+    returnGeometry:'false',
+    resultRecordCount:300,
+    orderByFields: profile==='premium'?'JUST DESC':'S_1DATE ASC'
+  });
+
+  return {
+    results:rows.map(a=>realEstateResult(a,profile)).sort((a,b)=>b.score-a.score).slice(0,200),
+    sourceStatus:{property:'live'},
+    generatedAt:new Date().toISOString(),
+    profile
+  };
+}
+
 async function health(){
   const settled=await Promise.allSettled([
     fetchArcgis(PARCEL_URL,{where:'1=0',returnCountOnly:'true'},{countOnly:true}),
@@ -301,6 +395,9 @@ export default async function handler(req,res){
     }
     if(mode==='radar'){
       return res.status(200).json(await radar(body.days));
+    }
+    if(mode==='real-estate-radar'){
+      return res.status(200).json(await realEstateRadar(body.filters||{}));
     }
     return res.status(400).json({error:'Unknown lead-search mode.'});
   }catch(e){
