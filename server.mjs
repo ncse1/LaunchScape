@@ -1,7 +1,8 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
-import handler from './api/campaign.mjs';\nimport prospectHandler from './api/prospects.mjs';
-const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/enhancements.js':'enhancements.js','/radar.js':'radar.js','/styles.css':'styles.css','/supabase-config.js':'supabase-config.js','/cloud.js':'cloud.js'};
+import handler from './api/campaign.mjs';
+import prospectHandler from './api/prospects.mjs';
+const publicFiles={'/':'index.html','/ncs-iphone-estimator-sandbox':'ncs-iphone-estimator-sandbox/index.html','/ncs-iphone-estimator-sandbox/':'ncs-iphone-estimator-sandbox/index.html','/ncs-iphone-estimator-sandbox/index.html':'ncs-iphone-estimator-sandbox/index.html','/ncs-iphone-estimator-sandbox/pricing.js':'ncs-iphone-estimator-sandbox/pricing.js','/index.html':'index.html','/app.js':'app.js','/enhancements.js':'enhancements.js','/radar.js':'radar.js','/real-estate.js':'real-estate.js','/styles.css':'styles.css','/supabase-config.js':'supabase-config.js','/cloud.js':'cloud.js'};
 const server=http.createServer(async(req,res)=>{
  res.status=n=>{res.statusCode=n;return res;};res.json=value=>{res.setHeader('Content-Type','application/json');res.end(JSON.stringify(value));};
  const pathname=new URL(req.url,'http://localhost').pathname;

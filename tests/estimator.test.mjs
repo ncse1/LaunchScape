@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import '../ncs-iphone-estimator-sandbox/pricing.js';
+const {calculate}=globalThis.NCSPricing;
+const rates={crewSell:225,crewCost:70,markup:40,overhead:20};
+const row={label:'Boat lift circuit',qty:1,material:500,hours:4};
+test('NCS price, direct cost, markup and overhead reconcile',()=>{const c=calculate([row],rates);assert.equal(c.sum,1600);assert.equal(c.cost,780);assert.equal(c.profit,820);assert.equal(c.overhead,320);assert.equal(c.afterOverhead,500);});
+test('quantity applies to materials and crew hours together',()=>{const c=calculate([{...row,qty:2}],rates);assert.equal(c.sum,3200);assert.equal(c.cost,1560);});
+test('missing, negative, nonfinite and invalid rates block proposal',()=>{for(const value of ['',-1,'bad',Infinity,null])assert.equal(calculate([{...row,material:value}],rates).complete,false);assert.equal(calculate([],rates).complete,false);assert.equal(calculate([{...row,label:''}],rates).complete,false);assert.equal(calculate([row],{...rates,overhead:101}).complete,false);});
+test('zero materials and hours supported; fractional quantities rounded to cents',()=>{assert.equal(calculate([{...row,material:0}],rates).sum,900);assert.equal(calculate([{...row,qty:.33,material:1.01,hours:0}],rates).sum,.47);});
+import {readFileSync} from 'node:fs';
+test('embedded engine stays identical and works on clean directory URLs',()=>{const engine=readFileSync(new URL('../ncs-iphone-estimator-sandbox/pricing.js',import.meta.url),'utf8');const html=readFileSync(new URL('../ncs-iphone-estimator-sandbox/index.html',import.meta.url),'utf8');assert.ok(html.includes('<script>\n'+engine+'</script>'));});
